@@ -33,7 +33,7 @@ jobs:
 
     - name: Install libBladeRF
       shell: bash
-      run: cd /tmp && git clone https://github.com/Nuand/bladeRF.git ./bladeRF && cd bladeRF && git checkout ${{ LIBBLADERFCOMMIT }} && cd host && mkdir build && cd build && cmake -DCMAKE_BUILD_TYPE=Release -DINSTALL_UDEV_RULES=ON ../ && make && make install && cd /tmp && rm -rf bladeRF
+      run: cd /tmp && git clone https://github.com/Nuand/bladeRF.git ./bladeRF && cd bladeRF && git checkout $LIBBLADERFCOMMIT && cd host && mkdir build && cd build && cmake -DCMAKE_BUILD_TYPE=Release -DINSTALL_UDEV_RULES=ON ../ && make && make install && cd /tmp && rm -rf bladeRF
 
     - name: Set Compiler
       shell: bash
