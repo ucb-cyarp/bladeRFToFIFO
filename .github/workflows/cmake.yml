@@ -29,11 +29,11 @@ jobs:
       
     - name: Install Dependencies
       shell: bash
-      run: if [[ ${{ matrix.compiler }} == "clang" ]]; then sudo apt install clang; elif [[ ${{ matrix.compiler }} == "gcc" ]]; then sudo apt install gcc g++; fi; sudo apt install build-essential cmake libusb-1.0-0-dev libusb-1.0-0 libncurses5-dev libtecla1 libtecla-dev pkg-config git wget doxygen help2man pandoc
+      run: if [[ ${{ matrix.compiler }} == "clang" ]]; then sudo apt-get install -y clang; elif [[ ${{ matrix.compiler }} == "gcc" ]]; then sudo apt-get install -y gcc g++; fi; sudo apt-get install -y build-essential cmake libusb-1.0-0-dev libusb-1.0-0 libncurses5-dev libtecla1 libtecla-dev pkg-config git wget doxygen help2man pandoc
 
     - name: Install libBladeRF
       shell: bash
-      run: cd /tmp && git clone https://github.com/Nuand/bladeRF.git ./bladeRF && cd bladeRF && git checkout $LIBBLADERFCOMMIT && cd host && mkdir build && cd build && cmake -DCMAKE_BUILD_TYPE=Release -DINSTALL_UDEV_RULES=OFF ../ && make && make install && cd /tmp && rm -rf bladeRF
+      run: cd /tmp && git clone https://github.com/Nuand/bladeRF.git ./bladeRF && cd bladeRF && git checkout $LIBBLADERFCOMMIT && cd host && mkdir build && cd build && cmake -DCMAKE_BUILD_TYPE=Release -DINSTALL_UDEV_RULES=ON ../ && make && sudo make install && cd /tmp && rm -rf bladeRF
 
     - name: Set Compiler
       shell: bash
