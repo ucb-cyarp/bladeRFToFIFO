@@ -27,11 +27,23 @@ endif()
 #With help from https://stackoverflow.com/questions/49737854/how-to-use-ld-library-path-in-cmakelists
 #     on how to get find library to search LD_LIBRARY_PATH
 # https://cmake.org/cmake/help/latest/command/find_library.html
-find_library(LIB_BLADERF bladeRF PATHS ENV LD_LIBRARY_PATH})
+if(DEFINED ENV{LD_LIBRARY_PATH})
+    string(REPLACE ":" ";" LD_LIBRARY_PATH_CMAKE_LIST $ENV{LD_LIBRARY_PATH})
+    find_library(LIB_BLADERF bladeRF PATHS ${LD_LIBRARY_PATH_CMAKE_LIST})
+else()
+    find_library(LIB_BLADERF bladeRF)
+endif()
+
+if(DEFINED ENV{C_INCLUDE_PATH})
+    string(REPLACE ":" ";" C_INCLUDE_PATH_CMAKE_LIST $ENV{C_INCLUDE_PATH})
+    find_path(INCLUDE_BLADERF libbladeRF.h PATHS ${C_INCLUDE_PATH_CMAKE_LIST})
+else()
+    find_path(INCLUDE_BLADERF libbladeRF.h)
+endif()
+
 if(NOT LIB_BLADERF)
     message(FATAL_ERROR "bladeRF not found")
 endif()
-find_path(INCLUDE_BLADERF libbladeRF.h PATHS ENV C_INCLUDE_PATH)
 if(NOT INCLUDE_BLADERF)
     message(FATAL_ERROR "bladeRF include not found")
 endif()
