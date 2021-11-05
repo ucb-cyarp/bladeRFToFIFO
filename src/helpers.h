@@ -32,6 +32,8 @@ void* vitis_aligned_alloc(size_t alignment, size_t size);
 
 char* bladeRFGainModeToStr(bladerf_gain_mode mode);
 
+char* bladeRFLoopbackModeToStr(bladerf_loopback mode);
+
 void reportBladeRFChannelState(struct bladerf *dev, bool tx, int chanNum);
 
 #endif //BLADERFTOFIFO_HELPERS_H

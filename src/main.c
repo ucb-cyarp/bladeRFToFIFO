@@ -377,10 +377,37 @@ int main(int argc, char **argv) {
 
     //Config bladeRF settings
     //Will configure Tx0 and Rx 0
-    configBladeRFChannel(dev, true,  0, txFreq, txBW, txSampRate, txGain, print);
-    configBladeRFChannel(dev, false, 0, rxFreq, rxBW, rxSampRate, rxGain, print);
+    configBladeRFChannel(dev, true,  0, txFreq, txBW, txSampRate, txGain, false);
+    configBladeRFChannel(dev, false, 0, rxFreq, rxBW, rxSampRate, rxGain, false);
 
-        //Configure
+    //**** For Debugging Interface, Can Enable Loopback ****
+    bool enableLoopBack = false;
+    if(enableLoopBack && print){
+        printf("********** RFIC LOOPBACK MODE *********\n");
+    }
+
+    bladerf_loopback loopbackMode = enableLoopBack ? BLADERF_LB_RFIC_BIST : BLADERF_LB_NONE;
+    int statusLB = bladerf_set_loopback(dev, loopbackMode);	
+    if (statusLB != 0) {
+        fprintf(stderr, "Failed to configure bladeRF Loopback: %s\n",
+                bladerf_strerror(statusLB));
+        exit(1);
+    }
+
+    bladerf_loopback loopbackModeReported;
+    statusLB = bladerf_get_loopback(dev, &loopbackModeReported);	
+    if (statusLB != 0) {
+        fprintf(stderr, "Failed to get bladeRF Loopback: %s\n",
+                bladerf_strerror(statusLB));
+        exit(1);
+    }
+
+    if(print){
+        char* loopbackModeDescr = bladeRFLoopbackModeToStr(loopbackModeReported);
+        printf("BladeRF Loopback Mode: %s\n", loopbackModeDescr);
+    }
+
+    //Configure
     //NOTE: This is where SISO (1 Tx) or MIMO (2 Rx) is declared
     //The format is defined in https://www.nuand.com/bladeRF-doc/libbladeRF/v2.2.1/group___s_t_r_e_a_m_i_n_g___f_o_r_m_a_t.html#ga4c61587834fd4de51a8e2d34e14a73b2
     //It is called SC16_Q11, presumably signed complex 16 bit numbers, Q11 fixed point

@@ -32,6 +32,20 @@ char* bladeRFGainModeToStr(bladerf_gain_mode mode){
     }
 }
 
+char* bladeRFLoopbackModeToStr(bladerf_loopback mode){
+    switch(mode) {
+        case BLADERF_LB_NONE:
+            return "BLADERF_LB_NONE - Disabled (Normal Operation)";
+        case BLADERF_LB_FIRMWARE:
+            return "BLADERF_LB_FIRMWARE - Firmware Loopback";
+        case BLADERF_LB_RFIC_BIST:
+            return "BLADERF_LB_RFIC_BIST - RFIC Loopback";
+        //There are more for other bladeRFs but we are using bladeRF 2.0 Micro
+        default:
+            return "UNKNOWN";
+    }
+}
+
 void reportBladeRFChannelState(struct bladerf *dev, bool tx, int chanNum){
     bladerf_channel chan = tx ? BLADERF_CHANNEL_TX(chanNum) : BLADERF_CHANNEL_RX(chanNum);
     char chanHelpStr[5];

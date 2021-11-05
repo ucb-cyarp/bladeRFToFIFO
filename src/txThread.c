@@ -113,28 +113,27 @@ void* txThread(void* uncastArgs){
             long scaled_thresh_re[numToProcess];
             long scaled_thresh_im[numToProcess];
             for (int i = 0; i < numToProcess; i++) {
+                scaled_thresh_re[i] = scaled_re[i];
+                scaled_thresh_im[i] = scaled_im[i];
                 if (saturate) {
-                    if (scaled_re[i] > BLADERF_FULL_RANGE_VALUE) {
+                    if (scaled_thresh_re[i] > BLADERF_FULL_RANGE_VALUE) {
                         scaled_thresh_re[i] = BLADERF_FULL_RANGE_VALUE;
-                    } else if (scaled_re[i] < -BLADERF_FULL_RANGE_VALUE) {
+                    } else if (scaled_thresh_re[i] < -BLADERF_FULL_RANGE_VALUE) {
                         scaled_thresh_re[i] = -BLADERF_FULL_RANGE_VALUE;
-                    } else {
-                        scaled_thresh_re[i] = scaled_re[i];
                     }
 
-                    if (scaled_im[i] > BLADERF_FULL_RANGE_VALUE) {
+                    if (scaled_thresh_im[i] > BLADERF_FULL_RANGE_VALUE) {
                         scaled_thresh_im[i] = BLADERF_FULL_RANGE_VALUE;
-                    } else if (scaled_im[i] < -BLADERF_FULL_RANGE_VALUE) {
+                    } else if (scaled_thresh_im[i] < -BLADERF_FULL_RANGE_VALUE) {
                         scaled_thresh_im[i] = -BLADERF_FULL_RANGE_VALUE;
-                    } else {
-                        scaled_thresh_im[i] = scaled_im[i];
                     }
                 }
             }
 
-            for (int i = 0; i < blockLen; i++) {
+            for (int i = 0; i < numToProcess; i++) {
                 bladeRFSampBuffer[2 * (bladeRFBufferPos+i)    ] = (int16_t) scaled_thresh_re[i];
                 bladeRFSampBuffer[2 * (bladeRFBufferPos+i) + 1] = (int16_t) scaled_thresh_im[i];
+                // printf("Tx: %5d, %5d\n", bladeRFSampBuffer[2 * (bladeRFBufferPos+i)    ], bladeRFSampBuffer[2 * (bladeRFBufferPos+i) + 1]);
             }
 
             sharedMemPos += numToProcess;

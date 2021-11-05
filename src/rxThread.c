@@ -101,8 +101,10 @@ void* rxThread(void* uncastArgs){
 
             //Copy bladeRF buffer to shared memory Buffer
             for(int i = 0; i<numToProcess; i++){
+                // printf("Rx: %5d, %5d\n", bladeRFSampBuffer[2 * (bladeRFBufferPos+i)    ], bladeRFSampBuffer[2 * (bladeRFBufferPos+i) + 1]);
                 sharedMemFIFO_re[sharedMemPos+i] = bladeRFSampBuffer[2 * (bladeRFBufferPos+i)    ] * scaleFactor;
                 sharedMemFIFO_im[sharedMemPos+i] = bladeRFSampBuffer[2 * (bladeRFBufferPos+i) + 1] * scaleFactor;
+                // printf("Rx: %15.10f, %15.10f\n", sharedMemFIFO_re[sharedMemPos+i], sharedMemFIFO_im[sharedMemPos+i]);
             }
 
             sharedMemPos += numToProcess;
@@ -114,7 +116,7 @@ void* rxThread(void* uncastArgs){
                 #ifdef DEBUG
                 printf("Sending Rx samples to Shared Memory FIFO\n");
                 #endif
-                writeFifo(bladeRFSampBuffer, fifoBufferBlockSizeBytes, 1, &rxFifo);
+                writeFifo(sharedMemFIFOSampBuffer, fifoBufferBlockSizeBytes, 1, &rxFifo);
                 sharedMemPos = 0;
                 #ifdef DEBUG
                 printf("Sent Rx samples to Shared Memory FIFO\n");
