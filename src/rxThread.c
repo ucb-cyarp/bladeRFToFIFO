@@ -52,28 +52,22 @@ void* rxThread(void* uncastArgs){
     //While this array can be of "any reasonable size" according to https://www.nuand.com/bladeRF-doc/libbladeRF/v2.2.1/sync_no_meta.html,
     //will keep it the same as the requested bladeRF buffer lengths at the underlying bladeRF buffer length has to be filled in order to send samples down to the FPGA
     //The elements are complex 16 bit numbers (32 bits total)
-    SAMPLE_COMPONENT_DATATYPE* bladeRFSampBuffer = (SAMPLE_COMPONENT_DATATYPE*) vitis_aligned_alloc(MEM_ALIGNMENT, sizeof(int16_t)*2*bladeRFBlockLen);
+    int16_t* bladeRFSampBuffer = (int16_t*) vitis_aligned_alloc(MEM_ALIGNMENT, sizeof(int16_t)*2*bladeRFBlockLen);
 
     SAMPLE_COMPONENT_DATATYPE *sharedMemFIFO_re = sharedMemFIFOSampBuffer;
     SAMPLE_COMPONENT_DATATYPE *sharedMemFIFO_im = sharedMemFIFOSampBuffer+blockLen;
 
-    //See txThread.c for information on the data format from bladeRF and the specifics of configuring
-    int status = bladerf_sync_config(dev, BLADERF_RX_X1, BLADERF_FORMAT_SC16_Q11,
-                                     bladeRFNumBuffers, bladeRFBlockLen, bladeRFNumTransfers,
-                                     0);
-    if (status != 0) {
-        fprintf(stderr, "Failed to configure bladeRF Rx: %s\n",
-                bladerf_strerror(status));
-        return NULL;
-    }
-
     //Start Tx
-    status = bladerf_enable_module(dev, BLADERF_RX, true);
+    int status = bladerf_enable_module(dev, BLADERF_RX, true);
     if (status != 0) {
         fprintf(stderr, "Failed to enable bladeRF Rx: %s\n", bladerf_strerror(status));
         return NULL;
     }
-
+    
+    if(print){
+        printf("Configured Rx\n");
+        reportBladeRFChannelState(dev, false, 0);
+    }
     //Main Loop
 
     //Get a block of samples from the bladeRF.  Process them by copying them to the shared memory buffer.  Write
@@ -81,6 +75,9 @@ void* rxThread(void* uncastArgs){
     //shared memory buffer.
     int sharedMemPos = 0;
     while(!(*stop)){
+        #ifdef DEBUG
+        printf("About to read Rx samples from BladeRf\n");
+        #endif
         //Get samples from bladeRF
         status = bladerf_sync_rx(dev, bladeRFSampBuffer, bladeRFBlockLen, NULL, 0);
         if (status != 0) {
@@ -88,6 +85,9 @@ void* rxThread(void* uncastArgs){
                     bladerf_strerror(status));
             return NULL;
         }
+        #ifdef DEBUG
+        printf("Read Rx samples from BladeRf\n");
+        #endif
 
         int bladeRFBufferPos = 0;
         while(bladeRFBufferPos < bladeRFBlockLen) {
@@ -95,6 +95,9 @@ void* rxThread(void* uncastArgs){
             int remainingSamplesBladeRFToProcess = bladeRFBlockLen - bladeRFBufferPos;
             int remainingSharedMemorySpace = blockLen - sharedMemPos;
             int numToProcess = remainingSamplesBladeRFToProcess < remainingSharedMemorySpace ? remainingSamplesBladeRFToProcess : remainingSharedMemorySpace;
+            #ifdef DEBUG
+            printf("Rx Samples Being Processed: %d\n", numToProcess);
+            #endif
 
             //Copy bladeRF buffer to shared memory Buffer
             for(int i = 0; i<numToProcess; i++){
@@ -108,8 +111,14 @@ void* rxThread(void* uncastArgs){
             if(sharedMemPos >= blockLen) {
                 //Write samples to rx pipe (ok to block)
                 // printf("About to write samples to rx FIFO\n");
+                #ifdef DEBUG
+                printf("Sending Rx samples to Shared Memory FIFO\n");
+                #endif
                 writeFifo(bladeRFSampBuffer, fifoBufferBlockSizeBytes, 1, &rxFifo);
                 sharedMemPos = 0;
+                #ifdef DEBUG
+                printf("Sent Rx samples to Shared Memory FIFO\n");
+                #endif
             }
         }
 
@@ -121,6 +130,9 @@ void* rxThread(void* uncastArgs){
     if (status != 0) {
         fprintf(stderr, "Failed to stop bladeRF Rx: %s\n", bladerf_strerror(status));
         return NULL;
+    }
+    if(print){
+        printf("BladeRF Rx Stopped");
     }
 
     free(sharedMemFIFOSampBuffer);

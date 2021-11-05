@@ -60,23 +60,6 @@ void openBladeRF(struct bladerf **dev){
     }
 }
 
-char* bladeRFGainModeToStr(bladerf_gain_mode mode){
-    switch(mode) {
-        case BLADERF_GAIN_DEFAULT:
-            return "BLADERF_GAIN_DEFAULT - Default";
-        case BLADERF_GAIN_MGC:
-            return "BLADERF_GAIN_MGC - Manual gain control";
-        case BLADERF_GAIN_FASTATTACK_AGC:
-            return "BLADERF_GAIN_FASTATTACK_AGC - Automatic gain control, fast attack (advanced)";
-        case BLADERF_GAIN_SLOWATTACK_AGC:
-            return "BLADERF_GAIN_SLOWATTACK_AGC - Automatic gain control, slow attack (advanced)";
-        case BLADERF_GAIN_HYBRID_AGC:
-            return "BLADERF_GAIN_HYBRID_AGC - Automatic gain control, hybrid attack (advanced)";
-        default:
-            return "UNKNOWN";
-    }
-}
-
 void configBladeRFChannel(struct bladerf *dev, bool tx, int chanNum, bladerf_frequency carrierFreqHz, bladerf_bandwidth bandwidthHz, bladerf_sample_rate sampleRateHz, bladerf_gain gainDB, bool verbose){
     bladerf_channel chan = tx ? BLADERF_CHANNEL_TX(chanNum) : BLADERF_CHANNEL_RX(chanNum);
     char chanHelpStr[5];
@@ -112,18 +95,21 @@ void configBladeRFChannel(struct bladerf *dev, bool tx, int chanNum, bladerf_fre
     }
 
     //Turn AGC Off
-    bladerf_gain_mode gainMode = BLADERF_GAIN_MGC;
-    status = bladerf_set_gain_mode(dev, chan, gainMode);
-    if (status != 0) {
-        fprintf(stderr, "Failed to set %s AGC = %s: %s\n", chanHelpStr, bladeRFGainModeToStr(gainMode), bladerf_strerror(status));
-        exit(1);
-    }
-
+    bladerf_gain_mode gainMode;
     bladerf_gain_mode reportedGainMode;
-    status = bladerf_get_gain_mode(dev, chan, &reportedGainMode);
-    if (status != 0) {
-        fprintf(stderr, "Failed to get %s gain mode: %s\n", chanHelpStr, bladerf_strerror(status));
-        exit(1);
+    if(!tx){
+        gainMode = BLADERF_GAIN_MGC;
+        status = bladerf_set_gain_mode(dev, chan, gainMode);
+        if (status != 0) {
+            fprintf(stderr, "Failed to set %s AGC = %s: %s\n", chanHelpStr, bladeRFGainModeToStr(gainMode), bladerf_strerror(status));
+            exit(1);
+        }
+
+        status = bladerf_get_gain_mode(dev, chan, &reportedGainMode);
+        if (status != 0) {
+            fprintf(stderr, "Failed to get %s gain mode: %s\n", chanHelpStr, bladerf_strerror(status));
+            exit(1);
+        }
     }
 
     status = bladerf_set_gain(dev, chan, gainDB);
@@ -144,7 +130,9 @@ void configBladeRFChannel(struct bladerf *dev, bool tx, int chanNum, bladerf_fre
         printf("[%s] Freq      Requested: %10lu, Reported:  %10lu\n", chanHelpStr, carrierFreqHz, reportedFreq);
         printf("[%s] BW        Requested: %10u, Currently: %10u\n", chanHelpStr, bandwidthHz, actualBW);
         printf("[%s] Samp Rate Requested: %10u, Currently: %10u\n", chanHelpStr, sampleRateHz, actualSampRate);
-        printf("[%s] AGC: \n\tRequested %s\n\tReported: %s\n", chanHelpStr, bladeRFGainModeToStr(gainMode), bladeRFGainModeToStr(reportedGainMode));
+        if(!tx){
+            printf("[%s] AGC: \n\tRequested %s\n\tReported: %s\n", chanHelpStr, bladeRFGainModeToStr(gainMode), bladeRFGainModeToStr(reportedGainMode));
+        }
         printf("[%s] Gain      Requested: %10u, Reported:  %10u\n", chanHelpStr, gainDB, reportedGain);
     }
 }
@@ -392,14 +380,66 @@ int main(int argc, char **argv) {
     configBladeRFChannel(dev, true,  0, txFreq, txBW, txSampRate, txGain, print);
     configBladeRFChannel(dev, false, 0, rxFreq, rxBW, rxSampRate, rxGain, print);
 
-    signal(SIGABRT, &signal_handler);
-    signal(SIGTERM, &signal_handler);
-    signal(SIGINT, &signal_handler);
+        //Configure
+    //NOTE: This is where SISO (1 Tx) or MIMO (2 Rx) is declared
+    //The format is defined in https://www.nuand.com/bladeRF-doc/libbladeRF/v2.2.1/group___s_t_r_e_a_m_i_n_g___f_o_r_m_a_t.html#ga4c61587834fd4de51a8e2d34e14a73b2
+    //It is called SC16_Q11, presumably signed complex 16 bit numbers, Q11 fixed point
+    //  From some cursory research, it appears that Q formats can be somewhat ambiguous as different conventions have been used over time
+    //  Based on the description in the manual (range and that this is the native format of the ADC/DAC,
+    //  it looks like 11 bits (not including sign bit) are used with no fractional component (there was no dot in the Q format description).
+    //  This would yield the range of [-2048, 2048) and a 12 bit 2's complement number - the number of bits used by the AD9361.
+    //  This can be further corroborated by looking at the src for the bladeRF-cli tx command (https://github.com/Nuand/bladeRF/blob/master/host/utilities/bladeRF-cli/src/cmd/tx.c)
+    //  Looking at tx_csv_to_sc16q11, the input values are clamped between SC16Q11_IQ_MIN and SC16Q11_IQ_MAX
+    //  SC16Q11_IQ_MIN is defined as -2048 and SC16Q11_IQ_MAX is defined as 2047
+    //  On the Rx side, the value is masked and sign extended to 16 bits in sc16q11_sample_fixup (https://github.com/Nuand/bladeRF/blob/master/host/utilities/bladeRF-cli/src/cmd/rx.c).
+    //  It is, however, not clear if this is actually necessary because the ADI documentation (https://wiki.analog.com/resources/fpga/docs/axi_ad9361#internal_interface_description)
+    //  states that the Rx values are sign extended in the ADI IP.  It looks like the ADI IP is instantiated in a Qsys system (the Altera/Intel equivalent of the Xilinx IP Integrator)
+    //  https://github.com/Nuand/bladeRF/blob/d1c382779f00c30bac90ca4f993d5d74f899b937/hdl/fpga/platforms/bladerf-micro/build/nios_system.tcl instantiated in
+    //  https://github.com/Nuand/bladeRF/blob/master/hdl/fpga/platforms/bladerf-micro/vhdl/bladerf-hosted.vhd.  I believe the IP being instantiated is the ADI IP at
+    //  https://github.com/Nuand/bladeRF/blob/master/hdl/fpga/ip/analogdevicesinc/hdl/library/axi_ad9361/axi_ad9361.v
+    //
+    //  Some descriptions of the Q format descriptor indicate it assumes a sign bit but many systems currently use a 2's
+    //  complement representation.  Unfortunately, the datasheet for the AD9361 does not provide much clarity on this point.
+    //  A forum post https://ez.analog.com/fpga/f/q-a/31795/ad9361-data-format-digital-interface points
+    //  to https://wiki.analog.com/resources/fpga/docs/axi_ad9361#internal_interface_description alludes to 2's complement with the concept
+    //  of sign extension.
+    //
+    //The upper 16 bits are Q
+    //The lower 16 bits are I
+    //The integer range [-2048, 2048) maps to [-1.0, 1.0)
 
+    //To avoid the asymmetry of the 2's complement representation, I will map to [-2047, 2047] inclusive
+
+    //When in MIMO mode, the samples from the different channels are interleaved.
     //TODO: Make args?
     int bladeRFBlockLen = 8192;
     int bladeRFNumBuffers = 16;
     int bladeRFNumTransfers = 8;
+
+    //Configure before opening threads and enabling Tx or Rx.  Streams need to be configured before any call to sync
+    int status = bladerf_sync_config(dev, BLADERF_TX_X1, BLADERF_FORMAT_SC16_Q11,
+                                     bladeRFNumBuffers, bladeRFBlockLen, bladeRFNumTransfers,
+                                 0);
+    if (status != 0) {
+        fprintf(stderr, "Failed to configure bladeRF Tx: %s\n",
+                bladerf_strerror(status));
+        exit(1);
+    }
+    status = bladerf_sync_config(dev, BLADERF_RX_X1, BLADERF_FORMAT_SC16_Q11,
+                                     bladeRFNumBuffers, bladeRFBlockLen, bladeRFNumTransfers,
+                                     1000);
+    if (status != 0) {
+        fprintf(stderr, "Failed to configure bladeRF Rx: %s\n",
+                bladerf_strerror(status));
+        exit(1);
+    }
+
+    // bladerf_log_set_verbosity(BLADERF_LOG_LEVEL_VERBOSE);
+    bladerf_log_set_verbosity(BLADERF_LOG_LEVEL_DEBUG);
+
+    signal(SIGABRT, &signal_handler);
+    signal(SIGTERM, &signal_handler);
+    signal(SIGINT, &signal_handler);
 
     //Create Thread Args
     txThreadArgs_t txThreadArgs;
@@ -433,7 +473,7 @@ int main(int argc, char **argv) {
     pthread_t thread_tx, thread_rx;
     pthread_attr_t attr_tx, attr_rx;
 
-    int status = pthread_attr_init(&attr_tx);
+    status = pthread_attr_init(&attr_tx);
     if (status != 0) {
         printf("Could not create Tx pthread attributes ... exiting");
         exit(1);
