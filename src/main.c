@@ -439,27 +439,14 @@ int main(int argc, char **argv) {
 
     //When in MIMO mode, the samples from the different channels are interleaved.
     //TODO: Make args?
-    int bladeRFBlockLen = 8192;
-    int bladeRFNumBuffers = 16;
-    int bladeRFNumTransfers = 8;
+    //int bladeRFBlockLen = 8192;
+    int bladeRFBlockLen = 16384;
+    //int bladeRFNumBuffers = 16;
+    int bladeRFNumBuffers = 32;
+    //int bladeRFNumTransfers = 8;
+    int bladeRFNumTransfers = 16;
 
     //Configure before opening threads and enabling Tx or Rx.  Streams need to be configured before any call to sync
-    int status = bladerf_sync_config(dev, BLADERF_TX_X1, BLADERF_FORMAT_SC16_Q11,
-                                     bladeRFNumBuffers, bladeRFBlockLen, bladeRFNumTransfers,
-                                 0);
-    if (status != 0) {
-        fprintf(stderr, "Failed to configure bladeRF Tx: %s\n",
-                bladerf_strerror(status));
-        exit(1);
-    }
-    status = bladerf_sync_config(dev, BLADERF_RX_X1, BLADERF_FORMAT_SC16_Q11,
-                                     bladeRFNumBuffers, bladeRFBlockLen, bladeRFNumTransfers,
-                                     1000);
-    if (status != 0) {
-        fprintf(stderr, "Failed to configure bladeRF Rx: %s\n",
-                bladerf_strerror(status));
-        exit(1);
-    }
 
     // bladerf_log_set_verbosity(BLADERF_LOG_LEVEL_VERBOSE);
     bladerf_log_set_verbosity(BLADERF_LOG_LEVEL_DEBUG);
@@ -500,7 +487,7 @@ int main(int argc, char **argv) {
     pthread_t thread_tx, thread_rx;
     pthread_attr_t attr_tx, attr_rx;
 
-    status = pthread_attr_init(&attr_tx);
+    int status = pthread_attr_init(&attr_tx);
     if (status != 0) {
         printf("Could not create Tx pthread attributes ... exiting");
         exit(1);

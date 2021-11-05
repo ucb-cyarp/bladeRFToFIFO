@@ -57,8 +57,17 @@ void* rxThread(void* uncastArgs){
     SAMPLE_COMPONENT_DATATYPE *sharedMemFIFO_re = sharedMemFIFOSampBuffer;
     SAMPLE_COMPONENT_DATATYPE *sharedMemFIFO_im = sharedMemFIFOSampBuffer+blockLen;
 
-    //Start Tx
-    int status = bladerf_enable_module(dev, BLADERF_RX, true);
+    int status = bladerf_sync_config(dev, BLADERF_RX_X1, BLADERF_FORMAT_SC16_Q11,
+                                     bladeRFNumBuffers, bladeRFBlockLen, bladeRFNumTransfers,
+                                     1000);
+    if (status != 0) {
+        fprintf(stderr, "Failed to configure bladeRF Rx: %s\n",
+                bladerf_strerror(status));
+        exit(1);
+    }
+
+    //Start Rx
+    status = bladerf_enable_module(dev, BLADERF_RX, true);
     if (status != 0) {
         fprintf(stderr, "Failed to enable bladeRF Rx: %s\n", bladerf_strerror(status));
         return NULL;
