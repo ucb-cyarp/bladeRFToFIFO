@@ -137,6 +137,80 @@ void configBladeRFChannel(struct bladerf *dev, bool tx, int chanNum, bladerf_fre
     }
 }
 
+void setCorrection(struct bladerf *dev, bool tx, int chanNum, bladerf_correction_value dcOff_I, bladerf_correction_value dcOff_Q, bladerf_correction_value iq_phase, bladerf_correction_value iq_gain){
+    bladerf_channel chan = tx ? BLADERF_CHANNEL_TX(chanNum) : BLADERF_CHANNEL_RX(chanNum);
+    char chanHelpStr[5];
+    snprintf(chanHelpStr, 5, tx ? "Tx%d" : "Rx%d", chanNum);
+
+    int status = bladerf_set_correction(dev, chan, BLADERF_CORR_DCOFF_I, dcOff_I);
+    if (status != 0) {
+        fprintf(stderr, "Failed to set %s DC Offset Correction - I: %s\n", chanHelpStr, bladerf_strerror(status));
+        exit(1);
+    }
+
+    status = bladerf_set_correction(dev, chan, BLADERF_CORR_DCOFF_Q, dcOff_Q);
+    if (status != 0) {
+        fprintf(stderr, "Failed to set %s DC Offset Correction - Q: %s\n", chanHelpStr, bladerf_strerror(status));
+        exit(1);
+    }
+
+    status = bladerf_set_correction(dev, chan, BLADERF_CORR_PHASE, iq_phase);
+    if (status != 0) {
+        fprintf(stderr, "Failed to set %s IQ Imballance Correction - Phase: %s\n", chanHelpStr, bladerf_strerror(status));
+        exit(1);
+    }
+
+    status = bladerf_set_correction(dev, chan, BLADERF_CORR_GAIN, iq_gain);
+    if (status != 0) {
+        fprintf(stderr, "Failed to set %s IQ Imballance Correction - Gain: %s\n", chanHelpStr, bladerf_strerror(status));
+        exit(1);
+    }
+
+    printf("[%s] DC Offset Correction - I:      %5d\n", chanHelpStr, dcOff_I);
+    printf("[%s] DC Offset Correction - Q:      %5d\n", chanHelpStr, dcOff_Q);
+    printf("[%s] I/Q Imbal. Correction - Phase: %5d\n", chanHelpStr, iq_phase);
+    printf("[%s] I/Q Imbal. Correction - Gain:  %5d\n", chanHelpStr, iq_gain);
+}
+
+void printCorrection(struct bladerf *dev, bool tx, int chanNum){
+    bladerf_channel chan = tx ? BLADERF_CHANNEL_TX(chanNum) : BLADERF_CHANNEL_RX(chanNum);
+    char chanHelpStr[5];
+    snprintf(chanHelpStr, 5, tx ? "Tx%d" : "Rx%d", chanNum);
+
+    bladerf_correction_value dcOff_I;
+    int status = bladerf_get_correction(dev, chan, BLADERF_CORR_DCOFF_I, &dcOff_I);
+    if (status != 0) {
+        fprintf(stderr, "Failed to get %s DC Offset Correction - I: %s\n", chanHelpStr, bladerf_strerror(status));
+        exit(1);
+    }
+
+    bladerf_correction_value dcOff_Q;
+    status = bladerf_get_correction(dev, chan, BLADERF_CORR_DCOFF_Q, &dcOff_Q);
+    if (status != 0) {
+        fprintf(stderr, "Failed to get %s DC Offset Correction - Q: %s\n", chanHelpStr, bladerf_strerror(status));
+        exit(1);
+    }
+
+    bladerf_correction_value iq_phase;
+    status = bladerf_get_correction(dev, chan, BLADERF_CORR_PHASE, &iq_phase);
+    if (status != 0) {
+        fprintf(stderr, "Failed to get %s IQ Imballance Correction - Phase: %s\n", chanHelpStr, bladerf_strerror(status));
+        exit(1);
+    }
+
+    bladerf_correction_value iq_gain;
+    status = bladerf_get_correction(dev, chan, BLADERF_CORR_GAIN, &iq_gain);
+    if (status != 0) {
+        fprintf(stderr, "Failed to get %s IQ Imballance Correction - Gain: %s\n", chanHelpStr, bladerf_strerror(status));
+        exit(1);
+    }
+
+    printf("[%s] DC Offset Correction - I:      %5d\n", chanHelpStr, dcOff_I);
+    printf("[%s] DC Offset Correction - Q:      %5d\n", chanHelpStr, dcOff_Q);
+    printf("[%s] I/Q Imbal. Correction - Phase: %5d\n", chanHelpStr, iq_phase);
+    printf("[%s] I/Q Imbal. Correction - Gain:  %5d\n", chanHelpStr, iq_gain);
+}
+
 int main(int argc, char **argv) {
     //--- Parse the arguments ---
     char *txSharedName = NULL;
@@ -379,6 +453,29 @@ int main(int argc, char **argv) {
     //Will configure Tx0 and Rx 0
     configBladeRFChannel(dev, true,  0, txFreq, txBW, txSampRate, txGain, false);
     configBladeRFChannel(dev, false, 0, rxFreq, rxBW, rxSampRate, rxGain, false);
+
+    //Config correction
+    //Comments from https://nuand.com/libbladeRF-doc/v2.2.1/group___f_n___c_o_r_r.html#ga75dd741fde93fecb4d514a1f9a377344 for convenience
+    bladerf_correction_value txDcOff_I = 0; //Adjusts the in-phase DC offset. Valid values are [-2048, 2048], which are scaled to the available control bits.
+    bladerf_correction_value txDcOff_Q = 0; //Adjusts the quadrature DC offset. Valid values are [-2048, 2048], which are scaled to the available control bits.
+    // bladerf_correction_value txIq_phase = -410; //Adjusts phase correction of [-10, 10] degrees, via a provided count value of [-4096, 4096].
+    // bladerf_correction_value txIq_gain = 410; //Adjusts gain correction value in [-1.0, 1.0], via provided values in the range of [-4096, 4096].
+    bladerf_correction_value txIq_phase = 0; //Adjusts phase correction of [-10, 10] degrees, via a provided count value of [-4096, 4096].
+    bladerf_correction_value txIq_gain = 0; //Adjusts gain correction value in [-1.0, 1.0], via provided values in the range of [-4096, 4096].
+    setCorrection(dev, true, 0, txDcOff_I, txDcOff_Q, txIq_phase, txIq_gain);
+
+    bladerf_correction_value rxDcOff_I = 920; //Adjusts the in-phase DC offset. Valid values are [-2048, 2048], which are scaled to the available control bits.
+    bladerf_correction_value rxDcOff_Q = -136; //Adjusts the quadrature DC offset. Valid values are [-2048, 2048], which are scaled to the available control bits.
+    // bladerf_correction_value rxDcOff_I = 0; //Adjusts the in-phase DC offset. Valid values are [-2048, 2048], which are scaled to the available control bits.
+    // bladerf_correction_value rxDcOff_Q = 0; //Adjusts the quadrature DC offset. Valid values are [-2048, 2048], which are scaled to the available control bits.
+    // bladerf_correction_value rxIq_phase = -310; //Adjusts phase correction of [-10, 10] degrees, via a provided count value of [-4096, 4096].
+    // bladerf_correction_value rxIq_gain = -310; //Adjusts gain correction value in [-1.0, 1.0], via provided values in the range of [-4096, 4096].
+    bladerf_correction_value rxIq_phase = -2270; //Adjusts phase correction of [-10, 10] degrees, via a provided count value of [-4096, 4096].
+    bladerf_correction_value rxIq_gain = -299; //Adjusts gain correction value in [-1.0, 1.0], via provided values in the range of [-4096, 4096].
+    setCorrection(dev, false, 0, rxDcOff_I, rxDcOff_Q, rxIq_phase, rxIq_gain);
+
+    printCorrection(dev, true, 0);
+    printCorrection(dev, false, 0);
 
     //**** For Debugging Interface, Can Enable Loopback ****
     bool enableLoopBack = false;

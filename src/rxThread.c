@@ -13,6 +13,8 @@
 #include "depends/BerkeleySharedMemoryFIFO.h"
 #include "rxThread.h"
 
+#define WRITE_RX_CSV
+
 void* rxThread(void* uncastArgs){
     rxThreadArgs_t* args = (rxThreadArgs_t*) uncastArgs;
     char *rxSharedName = args->rxSharedName;
@@ -30,6 +32,12 @@ void* rxThread(void* uncastArgs){
     uint32_t bladeRFNumTransfers = args->bladeRFNumTransfers;
 
     SAMPLE_COMPONENT_DATATYPE scaleFactor = (SAMPLE_COMPONENT_DATATYPE) fullRangeValue / BLADERF_FULL_RANGE_VALUE;
+
+    #ifdef WRITE_RX_CSV
+        printf("Writing to ./bladeRF_rx.csv\n");
+        FILE *rxCSV = fopen("./bladeRF_rx.csv", "w");
+        fprintf(rxCSV, "re,im\n");
+    #endif
 
     //---- Constants for opening FIFOs ----
     sharedMemoryFIFO_t rxFifo;
@@ -130,6 +138,13 @@ void* rxThread(void* uncastArgs){
                 #ifdef DEBUG
                 printf("Sent Rx samples to Shared Memory FIFO\n");
                 #endif
+
+                #ifdef WRITE_RX_CSV
+                //Write to CSV too
+                for(int i = 0; i<blockLen; i++){
+                    fprintf(rxCSV, "%f,%f\n", sharedMemFIFO_re[i], sharedMemFIFO_im[i]);
+                }
+                #endif
             }
         }
 
@@ -145,6 +160,10 @@ void* rxThread(void* uncastArgs){
     if(print){
         printf("BladeRF Rx Stopped");
     }
+
+    #ifdef WRITE_RX_CSV
+    fclose(rxCSV);
+    #endif
 
     free(sharedMemFIFOSampBuffer);
     free(bladeRFSampBuffer);
