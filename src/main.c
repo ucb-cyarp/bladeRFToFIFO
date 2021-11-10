@@ -166,10 +166,10 @@ void setCorrection(struct bladerf *dev, bool tx, int chanNum, bladerf_correction
         exit(1);
     }
 
-    printf("[%s] DC Offset Correction - I:      %5d\n", chanHelpStr, dcOff_I);
-    printf("[%s] DC Offset Correction - Q:      %5d\n", chanHelpStr, dcOff_Q);
-    printf("[%s] I/Q Imbal. Correction - Phase: %5d\n", chanHelpStr, iq_phase);
-    printf("[%s] I/Q Imbal. Correction - Gain:  %5d\n", chanHelpStr, iq_gain);
+    printf("[%s] Set DC Offset Correction - I:      %5d\n", chanHelpStr, dcOff_I);
+    printf("[%s] Set DC Offset Correction - Q:      %5d\n", chanHelpStr, dcOff_Q);
+    printf("[%s] Set I/Q Imbal. Correction - Phase: %5d\n", chanHelpStr, iq_phase);
+    printf("[%s] Set I/Q Imbal. Correction - Gain:  %5d\n", chanHelpStr, iq_gain);
 }
 
 void printCorrection(struct bladerf *dev, bool tx, int chanNum){
@@ -464,14 +464,14 @@ int main(int argc, char **argv) {
     bladerf_correction_value txIq_gain = 0; //Adjusts gain correction value in [-1.0, 1.0], via provided values in the range of [-4096, 4096].
     setCorrection(dev, true, 0, txDcOff_I, txDcOff_Q, txIq_phase, txIq_gain);
 
-    bladerf_correction_value rxDcOff_I = 920; //Adjusts the in-phase DC offset. Valid values are [-2048, 2048], which are scaled to the available control bits.
-    bladerf_correction_value rxDcOff_Q = -136; //Adjusts the quadrature DC offset. Valid values are [-2048, 2048], which are scaled to the available control bits.
+    bladerf_correction_value rxDcOff_I = -1984; //Adjusts the in-phase DC offset. Valid values are [-2048, 2048], which are scaled to the available control bits.
+    bladerf_correction_value rxDcOff_Q = -2048; //Adjusts the quadrature DC offset. Valid values are [-2048, 2048], which are scaled to the available control bits.
     // bladerf_correction_value rxDcOff_I = 0; //Adjusts the in-phase DC offset. Valid values are [-2048, 2048], which are scaled to the available control bits.
     // bladerf_correction_value rxDcOff_Q = 0; //Adjusts the quadrature DC offset. Valid values are [-2048, 2048], which are scaled to the available control bits.
     // bladerf_correction_value rxIq_phase = -310; //Adjusts phase correction of [-10, 10] degrees, via a provided count value of [-4096, 4096].
     // bladerf_correction_value rxIq_gain = -310; //Adjusts gain correction value in [-1.0, 1.0], via provided values in the range of [-4096, 4096].
-    bladerf_correction_value rxIq_phase = -2270; //Adjusts phase correction of [-10, 10] degrees, via a provided count value of [-4096, 4096].
-    bladerf_correction_value rxIq_gain = -299; //Adjusts gain correction value in [-1.0, 1.0], via provided values in the range of [-4096, 4096].
+    bladerf_correction_value rxIq_phase = 0; //Adjusts phase correction of [-10, 10] degrees, via a provided count value of [-4096, 4096].
+    bladerf_correction_value rxIq_gain = 0; //Adjusts gain correction value in [-1.0, 1.0], via provided values in the range of [-4096, 4096].
     setCorrection(dev, false, 0, rxDcOff_I, rxDcOff_Q, rxIq_phase, rxIq_gain);
 
     printCorrection(dev, true, 0);

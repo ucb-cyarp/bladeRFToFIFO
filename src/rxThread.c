@@ -13,7 +13,7 @@
 #include "depends/BerkeleySharedMemoryFIFO.h"
 #include "rxThread.h"
 
-#define WRITE_RX_CSV
+// #define WRITE_RX_CSV
 
 void* rxThread(void* uncastArgs){
     rxThreadArgs_t* args = (rxThreadArgs_t*) uncastArgs;
