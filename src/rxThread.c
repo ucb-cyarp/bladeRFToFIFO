@@ -31,6 +31,17 @@ void* rxThread(void* uncastArgs){
 
     SAMPLE_COMPONENT_DATATYPE scaleFactor = (SAMPLE_COMPONENT_DATATYPE) fullRangeValue / BLADERF_FULL_RANGE_VALUE;
 
+    //Get the correction parameters
+    //Scale down to a float
+    SAMPLE_COMPONENT_DATATYPE dc_I = (SAMPLE_COMPONENT_DATATYPE) args->dcOffsetI;
+    SAMPLE_COMPONENT_DATATYPE dc_Q = (SAMPLE_COMPONENT_DATATYPE) args->dcOffsetQ;
+    double iq_A_dbl, iq_C_dbl, iq_D_dbl;
+    getIQImbalCorrections(args->iqGain, args->iqPhase_deg, &iq_A_dbl, &iq_C_dbl, &iq_D_dbl);
+    SAMPLE_COMPONENT_DATATYPE iq_A = (SAMPLE_COMPONENT_DATATYPE) iq_A_dbl;
+    SAMPLE_COMPONENT_DATATYPE iq_C = (SAMPLE_COMPONENT_DATATYPE) iq_C_dbl;
+    SAMPLE_COMPONENT_DATATYPE iq_D = (SAMPLE_COMPONENT_DATATYPE) iq_D_dbl;
+    printf("Rx: DC Offset (I, Q)=(%5.2f, %5.2f), I/Q Imbalance (Gain, Phase.deg)=(%5.3f, %5.3f), Correction (A, C, D)=(%5.2f, %5.2f, %5.2f)\n", dc_I, dc_Q, args->iqGain, args->iqPhase_deg, iq_A, iq_C, iq_D);
+
     //---- Constants for opening FIFOs ----
     sharedMemoryFIFO_t rxFifo;
 
@@ -108,11 +119,18 @@ void* rxThread(void* uncastArgs){
             printf("Rx Samples Being Processed: %d\n", numToProcess);
             #endif
 
-            //Copy bladeRF buffer to shared memory Buffer
+            SAMPLE_COMPONENT_DATATYPE dcCorrectScaled_re[numToProcess];
+            SAMPLE_COMPONENT_DATATYPE dcCorrectScaled_im[numToProcess];
+            for(int i = 0; i<numToProcess; i++){
+                dcCorrectScaled_re[i] = (((SAMPLE_COMPONENT_DATATYPE) bladeRFSampBuffer[2 * (bladeRFBufferPos + i)    ]) - dc_I) * scaleFactor;
+                dcCorrectScaled_im[i] = (((SAMPLE_COMPONENT_DATATYPE) bladeRFSampBuffer[2 * (bladeRFBufferPos + i) + 1]) - dc_Q) * scaleFactor;
+            }
+
+            //IQ Correct & copy to shared memory buffer
             for(int i = 0; i<numToProcess; i++){
                 // printf("Rx: %5d, %5d\n", bladeRFSampBuffer[2 * (bladeRFBufferPos+i)    ], bladeRFSampBuffer[2 * (bladeRFBufferPos+i) + 1]);
-                sharedMemFIFO_re[sharedMemPos+i] = bladeRFSampBuffer[2 * (bladeRFBufferPos+i)    ] * scaleFactor;
-                sharedMemFIFO_im[sharedMemPos+i] = bladeRFSampBuffer[2 * (bladeRFBufferPos+i) + 1] * scaleFactor;
+                sharedMemFIFO_re[sharedMemPos+i] = iq_A*dcCorrectScaled_re[i];
+                sharedMemFIFO_im[sharedMemPos+i] = iq_C*dcCorrectScaled_re[i] + iq_D*dcCorrectScaled_im[i];
                 // printf("Rx: %15.10f, %15.10f\n", sharedMemFIFO_re[sharedMemPos+i], sharedMemFIFO_im[sharedMemPos+i]);
             }
 

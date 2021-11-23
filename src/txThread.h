@@ -27,6 +27,13 @@ typedef struct{
     uint32_t bladeRFBlockLen; //Needs to be a multiple of 1024, example gives 8192
     uint32_t bladeRFNumBuffers; //Example gives 16
     uint32_t bladeRFNumTransfers;
+
+    //Impairments
+    double dcOffsetI;
+    double dcOffsetQ;
+    double iqGain;
+    double iqPhase_deg;
+
 } txThreadArgs_t;
 
 void* txThread(void* uncastArgs);

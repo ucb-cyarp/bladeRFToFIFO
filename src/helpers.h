@@ -36,4 +36,6 @@ char* bladeRFLoopbackModeToStr(bladerf_loopback mode);
 
 void reportBladeRFChannelState(struct bladerf *dev, bool tx, int chanNum);
 
+void getIQImbalCorrections(double iqGain, double iqPhase_deg, double* A, double* C, double* D);
+
 #endif //BLADERFTOFIFO_HELPERS_H

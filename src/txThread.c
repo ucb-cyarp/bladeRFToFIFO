@@ -34,6 +34,17 @@ void* txThread(void* uncastArgs){
 
     SAMPLE_COMPONENT_DATATYPE scaleFactor = (SAMPLE_COMPONENT_DATATYPE) BLADERF_FULL_RANGE_VALUE / fullRangeValue;
 
+    //Get the pre-distortion parameters
+    //Scale down to a float
+    float dc_I = (float) args->dcOffsetI;
+    float dc_Q = (float) args->dcOffsetQ;
+    double iq_A_dbl, iq_C_dbl, iq_D_dbl;
+    getIQImbalCorrections(args->iqGain, args->iqPhase_deg, &iq_A_dbl, &iq_C_dbl, &iq_D_dbl);
+    float iq_A = (float) iq_A_dbl;
+    float iq_C = (float) iq_C_dbl;
+    float iq_D = (float) iq_D_dbl;
+    printf("Tx: DC Offset (I, Q)=(%5.2f, %5.2f), I/Q Imbalance (Gain, Phase.deg)=(%5.3f, %5.3f), Correction (A, C, D)=(%5.2f, %5.2f, %5.2f)\n", dc_I, dc_Q, args->iqGain, args->iqPhase_deg, iq_A, iq_C, iq_D);
+
     //---- Constants for opening FIFOs ----
     sharedMemoryFIFO_t txFifo;
     sharedMemoryFIFO_t txfbFifo;
@@ -111,12 +122,21 @@ void* txThread(void* uncastArgs){
             printf("Tx Samples Being Processed: %d\n", numToProcess);
             #endif
 
+            //Predistort Here for I/Q Imbalance
+            float iqPredistort_re[numToProcess];
+            float iqPredistort_im[numToProcess];
+            for (int i = 0; i < numToProcess; i++) {
+                iqPredistort_re[i] = iq_A*sharedMemFIFO_re[sharedMemPos+i];
+                iqPredistort_im[i] = iq_C*sharedMemFIFO_re[sharedMemPos+i] + iq_D*sharedMemFIFO_im[sharedMemPos+i];
+            }
+
+            //Scale and Subtract DC Offset, then Round
             //Copy to bladeRF buffer and perform interleave
             long scaled_re[numToProcess];
             long scaled_im[numToProcess];
             for (int i = 0; i < numToProcess; i++) {
-                scaled_re[i] = SAMPLE_ROUND_FCTN(sharedMemFIFO_re[sharedMemPos+i] * scaleFactor);
-                scaled_im[i] = SAMPLE_ROUND_FCTN(sharedMemFIFO_im[sharedMemPos+i] * scaleFactor);
+                scaled_re[i] = SAMPLE_ROUND_FCTN(iqPredistort_re[sharedMemPos+i] * scaleFactor - dc_I);
+                scaled_im[i] = SAMPLE_ROUND_FCTN(iqPredistort_im[sharedMemPos+i] * scaleFactor - dc_Q);
             }
 
             long scaled_thresh_re[numToProcess];

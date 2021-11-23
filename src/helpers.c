@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <memory.h>
 #include <stdio.h>
+#include <math.h>
 
 #include "helpers.h"
 
@@ -95,4 +96,19 @@ void reportBladeRFChannelState(struct bladerf *dev, bool tx, int chanNum){
         printf("[%s] AGC Mode      : %s\n", chanHelpStr, bladeRFGainModeToStr(reportedGainMode));
     }
     printf("[%s] Gain      (dB): %10u\n", chanHelpStr, reportedGain);
+}
+
+void getIQImbalCorrections(double iqGain, double iqPhase_deg, double* A, double* C, double* D){
+    /*
+     * Based on procedure in https://wiki.analog.com/resources/eval/user-guides/ad-fmcomms1-ebz/iq_correction
+     * and it's referenced source "Correcting I-Q Imbalance in Direct
+     * Conversion Receivers" by S.W. Ellingson, Feb 10, 2003,
+     * https://www.faculty.ece.vt.edu/swe/argus/iqbal.pdf
+     */
+
+    double iQPhase = iqPhase_deg*M_PI/180.0;
+
+    *A = 1/iqGain;
+    *C = -tan(iQPhase)/iqGain;
+    *D = 1/cos(iQPhase);
 }

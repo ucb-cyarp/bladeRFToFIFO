@@ -15,6 +15,8 @@
 #include "rxThread.h"
 #include "txThread.h"
 
+#define MAX_SERIAL_NUM_STRLEN (100)
+
 volatile bool stop = false; //Shared variable to indicate that the radio should be stopped.  Modified by signal handler
 
 void printHelp(){
@@ -38,6 +40,16 @@ void printHelp(){
     printf("-saturate: Indicates that Tx values beyond full scale are saturated\n");
     printf("-txCpu: CPU to run this application on (Tx side)\n");
     printf("-rxCpu: CPU to run this application on (Rx side)\n");
+    printf("-txSerialNum: Serial Number of BladeRF Board Used for Tx\n");
+    printf("-rxSerialNum: Serial Number of BladeRF Board Used for Tx\n");
+    printf("-txDCOffsetI: Measured DC Offset for Tx I Channel (DAC Scale [-2048, 2047])\n");
+    printf("-txDCOffsetQ: Measured DC Offset for Tx Q Channel (DAC Scale [-2048, 2047])\n");
+    printf("-rxDCOffsetI: Measured DC Offset for Rx I Channel (ADC Scale [-2048, 2047])\n");
+    printf("-rxDCOffsetQ: Measured DC Offset for Rx Q Channel (ADC Scale [-2048, 2047])\n");
+    printf("-txIQGain: Measured IQ Gain Imbalance at the Tx (Ratio)\n");
+    printf("-txIQPhase: Measured IQ Phase Imbalance at the Tx (Degree)\n");
+    printf("-rxIQGain: Measured IQ Gain Imbalance at the Tx (Ratio)\n");
+    printf("-rxIQPhase: Measured IQ Phase Imbalance at the Tx (Degree)\n");
     printf("-v: verbose\n");
 }
 
@@ -45,13 +57,18 @@ void signal_handler(int code){
     stop = true;
 }
 
-void openBladeRF(struct bladerf **dev){
+void openBladeRF(struct bladerf **dev, char* serialNum){
     //From BladeRF Boilerplate:
 
     struct bladerf_devinfo dev_info;
     bladerf_init_devinfo(&dev_info);
     //Can specify the serial number of the bladeRF device here
-    //strncpy(dev_info.serial, <Serial Number>, sizeof(dev_info.serial) - 1);
+    //TODO: Remove Sanity Check
+    if(sizeof(dev_info.serial) != strlen(serialNum)+1){ //Includes Null Char
+        fprintf(stderr, "Invalid Serial Number: %s\n", serialNum);
+        exit(1);
+    }
+    strncpy(dev_info.serial, serialNum, sizeof(dev_info.serial) - 1);
 
     int status = bladerf_open_with_devinfo(dev, &dev_info);
     if (status != 0) {
@@ -167,11 +184,25 @@ int main(int argc, char **argv) {
     SAMPLE_COMPONENT_DATATYPE fullScaleValue = 1;
     bool saturate = false;
 
+    char txSerial[MAX_SERIAL_NUM_STRLEN+1] = "";
+    char rxSerial[MAX_SERIAL_NUM_STRLEN+1] = "";
+
+    //I/Q and DC Offset Corrections
+    double txDCOffsetI = 0;
+    double txDCOffsetQ = 0;
+    double rxDCOffsetI = 0;
+    double rxDCOffsetQ = 0;
+    double txIQGain = 1;
+    double txIQPhase_deg = 0;
+    double rxIQGain = 1;
+    double rxIQPhase_deg = 0;
+
     if (argc < 2) {
         printHelp();
     }
 
     for (int i = 1; i < argc; i++) {
+        //#### Shared Memory FIFO Params
         if (strcmp("-rx", argv[i]) == 0) {
             i++; //Get the actual argument
 
@@ -206,6 +237,7 @@ int main(int argc, char **argv) {
                 blockLen = strtol(argv[i], NULL, 10);
                 if (blockLen <= 1) {
                     printf("-blocklen must be positive\n");
+                    exit(1);
                 }
             } else {
                 printf("Missing argument for -blocklen\n");
@@ -218,6 +250,7 @@ int main(int argc, char **argv) {
                 fifoSize = strtol(argv[i], NULL, 10);
                 if (blockLen <= 1) {
                     printf("-fifosize must be positive\n");
+                    exit(1);
                 }
             } else {
                 printf("Missing argument for -fifosize\n");
@@ -249,6 +282,7 @@ int main(int argc, char **argv) {
                 txFreq = strtol(argv[i], NULL, 10);
                 if (txFreq <= 1) {
                     printf("-txFreq must be positive\n");
+                    exit(1);
                 }
             } else {
                 printf("Missing argument for -txFreq\n");
@@ -261,6 +295,7 @@ int main(int argc, char **argv) {
                 rxFreq = strtol(argv[i], NULL, 10);
                 if (txFreq <= 1) {
                     printf("-rxFreq must be positive\n");
+                    exit(1);
                 }
             } else {
                 printf("Missing argument for -rxFreq\n");
@@ -273,6 +308,7 @@ int main(int argc, char **argv) {
                 txBW = strtol(argv[i], NULL, 10);
                 if (txBW <= 1) {
                     printf("-txBW must be positive\n");
+                    exit(1);
                 }
             } else {
                 printf("Missing argument for -txBW\n");
@@ -285,6 +321,7 @@ int main(int argc, char **argv) {
                 rxBW = strtol(argv[i], NULL, 10);
                 if (rxBW <= 1) {
                     printf("-rxBW must be positive\n");
+                    exit(1);
                 }
             } else {
                 printf("Missing argument for -rxBW\n");
@@ -297,6 +334,7 @@ int main(int argc, char **argv) {
                 txSampRate = strtol(argv[i], NULL, 10);
                 if (txSampRate <= 1) {
                     printf("-txSampRate must be positive\n");
+                    exit(1);
                 }
             } else {
                 printf("Missing argument for -txSampRate\n");
@@ -309,6 +347,7 @@ int main(int argc, char **argv) {
                 rxSampRate = strtol(argv[i], NULL, 10);
                 if (rxSampRate <= 1) {
                     printf("-rxSampRate must be positive\n");
+                    exit(1);
                 }
             } else {
                 printf("Missing argument for -rxSampRate\n");
@@ -321,6 +360,7 @@ int main(int argc, char **argv) {
                 fullScaleValue = SAMPLE_STR2_FCTN(argv[i]);
                 if (fullScaleValue <= 0) {
                     printf("-fullScale must be positive\n");
+                    exit(1);
                 }
             } else {
                 printf("Missing argument for -fullScale\n");
@@ -328,6 +368,7 @@ int main(int argc, char **argv) {
             }
         } else if (strcmp("-saturate", argv[i]) == 0) {
             saturate = true;
+            //#### CPUs
         } else if (strcmp("-txCpu", argv[i]) == 0) {
             i++; //Get the actual argument
 
@@ -335,6 +376,7 @@ int main(int argc, char **argv) {
                 txCpu = strtol(argv[i], NULL, 10);
                 if (txCpu <= 0) {
                     printf("-txCpu must be non-negative\n");
+                    exit(1);
                 }
             } else {
                 printf("Missing argument for -txCpu\n");
@@ -347,9 +389,103 @@ int main(int argc, char **argv) {
                 rxCpu = strtol(argv[i], NULL, 10);
                 if (rxCpu <= 0) {
                     printf("-rxCpu must be non-negative\n");
+                    exit(1);
                 }
             } else {
                 printf("Missing argument for -rxCpu\n");
+                exit(1);
+            }
+        //#### Serial Numbers
+        } else if (strcmp("-txSerialNum", argv[i]) == 0) {
+            i++; //Get the actual argument
+
+            if (i < argc) {
+                strncpy(txSerial, argv[i], MAX_SERIAL_NUM_STRLEN);
+            } else {
+                printf("Missing argument for -txSerialNum\n");
+                exit(1);
+            }
+        } else if (strcmp("-rxSerialNum", argv[i]) == 0) {
+            i++; //Get the actual argument
+
+            if (i < argc) {
+                strncpy(rxSerial, argv[i], MAX_SERIAL_NUM_STRLEN);
+            } else {
+                printf("Missing argument for -rxSerialNum\n");
+                exit(1);
+            }
+        //#### DC Offset
+        } else if (strcmp("-txDCOffsetI", argv[i]) == 0) {
+            i++; //Get the actual argument
+
+            if (i < argc) {
+                txDCOffsetI = strtod(argv[i], NULL);
+            } else {
+                printf("Missing argument for -txDCOffsetI\n");
+                exit(1);
+            }
+        } else if (strcmp("-txDCOffsetQ", argv[i]) == 0) {
+            i++; //Get the actual argument
+
+            if (i < argc) {
+                txDCOffsetQ = strtod(argv[i], NULL);
+            } else {
+                printf("Missing argument for -txDCOffsetQ\n");
+                exit(1);
+            }
+        } else if (strcmp("-rxDCOffsetI", argv[i]) == 0) {
+            i++; //Get the actual argument
+
+            if (i < argc) {
+                rxDCOffsetI = strtod(argv[i], NULL);
+            } else {
+                printf("Missing argument for -rxDCOffsetI\n");
+                exit(1);
+            }
+        } else if (strcmp("-rxDCOffsetQ", argv[i]) == 0) {
+            i++; //Get the actual argument
+
+            if (i < argc) {
+                rxDCOffsetQ = strtod(argv[i], NULL);
+            } else {
+                printf("Missing argument for -rxDCOffsetQ\n");
+                exit(1);
+            }
+        //#### I/Q Imbalance Properties
+        } else if (strcmp("-txIQGain", argv[i]) == 0) {
+            i++; //Get the actual argument
+
+            if (i < argc) {
+                txIQGain = strtod(argv[i], NULL);
+            } else {
+                printf("Missing argument for -txIQGain\n");
+                exit(1);
+            }
+        } else if (strcmp("-txIQPhase", argv[i]) == 0) {
+            i++; //Get the actual argument
+
+            if (i < argc) {
+                txIQPhase_deg = strtod(argv[i], NULL);
+            } else {
+                printf("Missing argument for -txIQGain\n");
+                exit(1);
+            }
+        } else if (strcmp("-rxIQGain", argv[i]) == 0) {
+            i++; //Get the actual argument
+
+            if (i < argc) {
+                rxIQGain = strtod(argv[i], NULL);
+            } else {
+                printf("Missing argument for -rxIQGain\n");
+                exit(1);
+            }
+        } else if (strcmp("-rxIQPhase", argv[i]) == 0) {
+            i++; //Get the actual argument
+
+            if (i < argc) {
+                rxIQPhase_deg = strtod(argv[i], NULL);
+            } else {
+                printf("Missing argument for -rxIQGain\n");
                 exit(1);
             }
         } else if (strcmp("-v", argv[i]) == 0) {
@@ -364,21 +500,43 @@ int main(int argc, char **argv) {
         exit(1);
     }
 
+    if(strlen(txSerial) == 0 && strlen(rxSerial) != 0){
+        fprintf(stderr, "Rx Serial Specified but Tx Serial Unspecified");
+        exit(1);
+    }
+    if(strlen(txSerial) != 0 && strlen(rxSerial) == 0){
+        fprintf(stderr, "Tx Serial Specified but Rx Serial Unspecified");
+        exit(1);
+    }
+    if(strlen(txSerial) == 0 && strlen(rxSerial) == 0){
+        fprintf(stderr, "Tx & Rx Serial Unspecified");
+        exit(1);
+    }
 
 
-    //TODO: ### Setup bladeRF
+    //### Setup bladeRF
     //For info on how to use libbladeRF see the documentation at https://www.nuand.com/bladeRF-doc/libbladeRF/v2.2.1/
     //The boilerplate for usage is at https://www.nuand.com/bladeRF-doc/libbladeRF/v2.2.1/boilerplate.html
     //Examples for Tx & Rx are at https://www.nuand.com/bladeRF-doc/libbladeRF/v2.2.1/sync_no_meta.html
 
+    printf("Tx BladeRF Serial Num: %s\nRx BladeRF Serial Num: %s\n", txSerial, rxSerial);
 
-    struct bladerf *dev = NULL;
-    openBladeRF(&dev);
+    struct bladerf *txDev = NULL;
+    openBladeRF(&txDev, txSerial);
+
+    struct bladerf *rxDev = NULL;
+    if(strcmp(txSerial, rxSerial) == 0){
+        //Tx and Rx board are the same
+        //Do not re-open the board
+        rxDev = txDev;
+    }else{
+        openBladeRF(&rxDev, rxSerial);
+    }
 
     //Config bladeRF settings
     //Will configure Tx0 and Rx 0
-    configBladeRFChannel(dev, true,  0, txFreq, txBW, txSampRate, txGain, false);
-    configBladeRFChannel(dev, false, 0, rxFreq, rxBW, rxSampRate, rxGain, false);
+    configBladeRFChannel(txDev, true,  0, txFreq, txBW, txSampRate, txGain, false);
+    configBladeRFChannel(rxDev, false, 0, rxFreq, rxBW, rxSampRate, rxGain, false);
 
     //**** For Debugging Interface, Can Enable Loopback ****
     bool enableLoopBack = false;
@@ -387,15 +545,16 @@ int main(int argc, char **argv) {
     }
 
     bladerf_loopback loopbackMode = enableLoopBack ? BLADERF_LB_RFIC_BIST : BLADERF_LB_NONE;
-    int statusLB = bladerf_set_loopback(dev, loopbackMode);	
+
+    int statusLB = bladerf_set_loopback(txDev, loopbackMode);
     if (statusLB != 0) {
         fprintf(stderr, "Failed to configure bladeRF Loopback: %s\n",
                 bladerf_strerror(statusLB));
         exit(1);
     }
 
-    bladerf_loopback loopbackModeReported;
-    statusLB = bladerf_get_loopback(dev, &loopbackModeReported);	
+    bladerf_loopback txLoopbackModeReported;
+    statusLB = bladerf_get_loopback(txDev, &txLoopbackModeReported);
     if (statusLB != 0) {
         fprintf(stderr, "Failed to get bladeRF Loopback: %s\n",
                 bladerf_strerror(statusLB));
@@ -403,8 +562,30 @@ int main(int argc, char **argv) {
     }
 
     if(print){
-        char* loopbackModeDescr = bladeRFLoopbackModeToStr(loopbackModeReported);
-        printf("BladeRF Loopback Mode: %s\n", loopbackModeDescr);
+        char* loopbackModeDescr = bladeRFLoopbackModeToStr(txLoopbackModeReported);
+        printf("%s BladeRF Loopback Mode: %s\n", txDev==rxDev ? "Tx/Rx" : "Tx", loopbackModeDescr);
+    }
+
+    if(rxDev != txDev){
+        int statusLB = bladerf_set_loopback(rxDev, loopbackMode);
+        if (statusLB != 0) {
+            fprintf(stderr, "Failed to configure bladeRF Loopback: %s\n",
+                    bladerf_strerror(statusLB));
+            exit(1);
+        }
+
+        bladerf_loopback rxLoopbackModeReported;
+        statusLB = bladerf_get_loopback(rxDev, &rxLoopbackModeReported);
+        if (statusLB != 0) {
+            fprintf(stderr, "Failed to get bladeRF Loopback: %s\n",
+                    bladerf_strerror(statusLB));
+            exit(1);
+        }
+
+        if(print){
+            char* loopbackModeDescr = bladeRFLoopbackModeToStr(rxLoopbackModeReported);
+            printf("Rx BladeRF Loopback Mode: %s\n", loopbackModeDescr);
+        }
     }
 
     //Configure
@@ -463,12 +644,16 @@ int main(int argc, char **argv) {
     txThreadArgs.fifoSizeBlocks = fifoSize;
     txThreadArgs.stop = &stop;
     txThreadArgs.print = print;
-    txThreadArgs.dev = dev;
+    txThreadArgs.dev = txDev;
     txThreadArgs.fullRangeValue = fullScaleValue;
     txThreadArgs.saturate = saturate;
     txThreadArgs.bladeRFBlockLen = bladeRFBlockLen;
     txThreadArgs.bladeRFNumBuffers = bladeRFNumBuffers;
     txThreadArgs.bladeRFNumTransfers = bladeRFNumTransfers;
+    txThreadArgs.dcOffsetI = txDCOffsetI;
+    txThreadArgs.dcOffsetQ = txDCOffsetQ;
+    txThreadArgs.iqGain = txIQGain;
+    txThreadArgs.iqPhase_deg = txIQPhase_deg;
 
     rxThreadArgs_t rxThreadArgs;
     rxThreadArgs.rxSharedName = rxSharedName;
@@ -476,11 +661,15 @@ int main(int argc, char **argv) {
     rxThreadArgs.fifoSizeBlocks = fifoSize;
     rxThreadArgs.stop = &stop;
     rxThreadArgs.print = print;
-    rxThreadArgs.dev = dev;
+    rxThreadArgs.dev = rxDev;
     rxThreadArgs.fullRangeValue = fullScaleValue;
     rxThreadArgs.bladeRFBlockLen = bladeRFBlockLen;
     rxThreadArgs.bladeRFNumBuffers = bladeRFNumBuffers;
     rxThreadArgs.bladeRFNumTransfers = bladeRFNumTransfers;
+    rxThreadArgs.dcOffsetI = rxDCOffsetI;
+    rxThreadArgs.dcOffsetQ = rxDCOffsetQ;
+    rxThreadArgs.iqGain = rxIQGain;
+    rxThreadArgs.iqPhase_deg = rxIQPhase_deg;
 
     //Create Thread
     cpu_set_t cpuset_tx, cpuset_rx;
@@ -566,8 +755,10 @@ int main(int argc, char **argv) {
     pthread_attr_destroy(&attr_tx);
     pthread_attr_destroy(&attr_rx);
 
-    //TODO: Disable Tx & Rx
-    //TODO: Cleanup bladeRF
+    bladerf_close(txDev);
+    if(rxDev != txDev) {
+        bladerf_close(rxDev);
+    }
 
     return 0;
 }
