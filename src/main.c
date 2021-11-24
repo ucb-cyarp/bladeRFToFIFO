@@ -613,27 +613,23 @@ int main(int argc, char **argv) {
     configBladeRFChannel(rxDev, false, 0, rxFreq, rxBW, rxSampRate, rxGain, false);
 
     //Config correction
+    //**** Setting to no correction - doing these corrections myself
     //Comments from https://nuand.com/libbladeRF-doc/v2.2.1/group___f_n___c_o_r_r.html#ga75dd741fde93fecb4d514a1f9a377344 for convenience
     bladerf_correction_value txDcOff_I = 0; //Adjusts the in-phase DC offset. Valid values are [-2048, 2048], which are scaled to the available control bits.
     bladerf_correction_value txDcOff_Q = 0; //Adjusts the quadrature DC offset. Valid values are [-2048, 2048], which are scaled to the available control bits.
-    // bladerf_correction_value txIq_phase = -410; //Adjusts phase correction of [-10, 10] degrees, via a provided count value of [-4096, 4096].
-    // bladerf_correction_value txIq_gain = 410; //Adjusts gain correction value in [-1.0, 1.0], via provided values in the range of [-4096, 4096].
     bladerf_correction_value txIq_phase = 0; //Adjusts phase correction of [-10, 10] degrees, via a provided count value of [-4096, 4096].
     bladerf_correction_value txIq_gain = 0; //Adjusts gain correction value in [-1.0, 1.0], via provided values in the range of [-4096, 4096].
-    setCorrection(dev, true, 0, txDcOff_I, txDcOff_Q, txIq_phase, txIq_gain);
+    setCorrection(txDev, true, 0, txDcOff_I, txDcOff_Q, txIq_phase, txIq_gain);
 
-    bladerf_correction_value rxDcOff_I = -1984; //Adjusts the in-phase DC offset. Valid values are [-2048, 2048], which are scaled to the available control bits.
-    bladerf_correction_value rxDcOff_Q = -2048; //Adjusts the quadrature DC offset. Valid values are [-2048, 2048], which are scaled to the available control bits.
-    // bladerf_correction_value rxDcOff_I = 0; //Adjusts the in-phase DC offset. Valid values are [-2048, 2048], which are scaled to the available control bits.
-    // bladerf_correction_value rxDcOff_Q = 0; //Adjusts the quadrature DC offset. Valid values are [-2048, 2048], which are scaled to the available control bits.
-    // bladerf_correction_value rxIq_phase = -310; //Adjusts phase correction of [-10, 10] degrees, via a provided count value of [-4096, 4096].
-    // bladerf_correction_value rxIq_gain = -310; //Adjusts gain correction value in [-1.0, 1.0], via provided values in the range of [-4096, 4096].
+    bladerf_correction_value rxDcOff_I = 0; //Adjusts the in-phase DC offset. Valid values are [-2048, 2048], which are scaled to the available control bits.
+    bladerf_correction_value rxDcOff_Q = 0; //Adjusts the quadrature DC offset. Valid values are [-2048, 2048], which are scaled to the available control bits.
     bladerf_correction_value rxIq_phase = 0; //Adjusts phase correction of [-10, 10] degrees, via a provided count value of [-4096, 4096].
     bladerf_correction_value rxIq_gain = 0; //Adjusts gain correction value in [-1.0, 1.0], via provided values in the range of [-4096, 4096].
-    setCorrection(dev, false, 0, rxDcOff_I, rxDcOff_Q, rxIq_phase, rxIq_gain);
+    setCorrection(rxDev, false, 0, rxDcOff_I, rxDcOff_Q, rxIq_phase, rxIq_gain);
 
-    printCorrection(dev, true, 0);
-    printCorrection(dev, false, 0);
+    //Setting libbladerf corrections to no correction - doing these corrections myself
+//    printCorrection(txDev, true, 0);
+//    printCorrection(rxDev, false, 0);
 
     //**** For Debugging Interface, Can Enable Loopback ****
     bool enableLoopBack = false;
