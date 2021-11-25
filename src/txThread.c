@@ -62,7 +62,7 @@ void* txThread(void* uncastArgs){
     consumerOpenFIFOBlock(txSharedName, fifoBufferSizeBytes, &txFifo);
 
     //Allocate Buffers
-    SAMPLE_COMPONENT_DATATYPE* sharedMemFIFOSampBuffer = (SAMPLE_COMPONENT_DATATYPE*) vitis_aligned_alloc(MEM_ALIGNMENT, sizeof(SAMPLE_COMPONENT_DATATYPE)*2*blockLen);
+    SAMPLE_COMPONENT_DATATYPE* sharedMemFIFOSampBuffer = (SAMPLE_COMPONENT_DATATYPE*) vitis_aligned_alloc(MEM_ALIGNMENT, fifoBufferBlockSizeBytes);
     //While this array can be of "any reasonable size" according to https://www.nuand.com/bladeRF-doc/libbladeRF/v2.2.1/sync_no_meta.html,
     //will keep it the same as the requested bladeRF buffer lengths at the underlying bladeRF buffer length has to be filled in order to send samples down to the FPGA
     //The elements are complex 16 bit numbers (32 bits total)
@@ -135,8 +135,8 @@ void* txThread(void* uncastArgs){
             long scaled_re[numToProcess];
             long scaled_im[numToProcess];
             for (int i = 0; i < numToProcess; i++) {
-                scaled_re[i] = SAMPLE_ROUND_FCTN(iqPredistort_re[sharedMemPos+i] * scaleFactor - dc_I);
-                scaled_im[i] = SAMPLE_ROUND_FCTN(iqPredistort_im[sharedMemPos+i] * scaleFactor - dc_Q);
+                scaled_re[i] = SAMPLE_ROUND_FCTN(iqPredistort_re[i] * scaleFactor - dc_I);
+                scaled_im[i] = SAMPLE_ROUND_FCTN(iqPredistort_im[i] * scaleFactor - dc_Q);
             }
 
             long scaled_thresh_re[numToProcess];
@@ -146,14 +146,18 @@ void* txThread(void* uncastArgs){
                 scaled_thresh_im[i] = scaled_im[i];
                 if (saturate) {
                     if (scaled_thresh_re[i] > BLADERF_FULL_RANGE_VALUE) {
+                        printf("Thresholded!! %ld\n", scaled_thresh_re[i]);
                         scaled_thresh_re[i] = BLADERF_FULL_RANGE_VALUE;
                     } else if (scaled_thresh_re[i] < -BLADERF_FULL_RANGE_VALUE) {
+                        printf("Thresholded!! %ld\n", scaled_thresh_re[i]);
                         scaled_thresh_re[i] = -BLADERF_FULL_RANGE_VALUE;
                     }
 
                     if (scaled_thresh_im[i] > BLADERF_FULL_RANGE_VALUE) {
+                        printf("Thresholded!! %ld\n", scaled_thresh_im[i]);
                         scaled_thresh_im[i] = BLADERF_FULL_RANGE_VALUE;
                     } else if (scaled_thresh_im[i] < -BLADERF_FULL_RANGE_VALUE) {
+                        printf("Thresholded!! %ld\n", scaled_thresh_im[i]);
                         scaled_thresh_im[i] = -BLADERF_FULL_RANGE_VALUE;
                     }
                 }

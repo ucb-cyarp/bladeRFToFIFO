@@ -67,7 +67,7 @@ void* rxThread(void* uncastArgs){
     producerOpenInitFIFO(rxSharedName, fifoBufferSizeBytes, &rxFifo);
 
     //Allocate Buffers
-    SAMPLE_COMPONENT_DATATYPE* sharedMemFIFOSampBuffer = (SAMPLE_COMPONENT_DATATYPE*) vitis_aligned_alloc(MEM_ALIGNMENT, sizeof(SAMPLE_COMPONENT_DATATYPE)*2*blockLen);
+    SAMPLE_COMPONENT_DATATYPE* sharedMemFIFOSampBuffer = (SAMPLE_COMPONENT_DATATYPE*) vitis_aligned_alloc(MEM_ALIGNMENT, fifoBufferBlockSizeBytes);
     //While this array can be of "any reasonable size" according to https://www.nuand.com/bladeRF-doc/libbladeRF/v2.2.1/sync_no_meta.html,
     //will keep it the same as the requested bladeRF buffer lengths at the underlying bladeRF buffer length has to be filled in order to send samples down to the FPGA
     //The elements are complex 16 bit numbers (32 bits total)
