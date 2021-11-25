@@ -146,18 +146,14 @@ void* txThread(void* uncastArgs){
                 scaled_thresh_im[i] = scaled_im[i];
                 if (saturate) {
                     if (scaled_thresh_re[i] > BLADERF_FULL_RANGE_VALUE) {
-                        printf("Thresholded!! %ld\n", scaled_thresh_re[i]);
                         scaled_thresh_re[i] = BLADERF_FULL_RANGE_VALUE;
                     } else if (scaled_thresh_re[i] < -BLADERF_FULL_RANGE_VALUE) {
-                        printf("Thresholded!! %ld\n", scaled_thresh_re[i]);
                         scaled_thresh_re[i] = -BLADERF_FULL_RANGE_VALUE;
                     }
 
                     if (scaled_thresh_im[i] > BLADERF_FULL_RANGE_VALUE) {
-                        printf("Thresholded!! %ld\n", scaled_thresh_im[i]);
                         scaled_thresh_im[i] = BLADERF_FULL_RANGE_VALUE;
                     } else if (scaled_thresh_im[i] < -BLADERF_FULL_RANGE_VALUE) {
-                        printf("Thresholded!! %ld\n", scaled_thresh_im[i]);
                         scaled_thresh_im[i] = -BLADERF_FULL_RANGE_VALUE;
                     }
                 }
